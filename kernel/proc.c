@@ -480,7 +480,6 @@ int getpinfo(struct pstat* p) {
   struct proc* pr;
   int i = 0;
   acquire(&ptable.lock);
-  cprintf("populating pstat\n");
   for (pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
     p->inuse[i] = (pr->state != UNUSED);
     p->pid[i] = pr->pid;
