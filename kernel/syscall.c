@@ -103,7 +103,8 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
-[SYS_getppid] sys_getppid // project 1b
+[SYS_getppid] sys_getppid, // project 1b
+[SYS_getpinfo]  sys_getpinfo // project 2b
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)

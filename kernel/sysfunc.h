@@ -23,6 +23,7 @@ int sys_unlink(void);
 int sys_wait(void);
 int sys_write(void);
 int sys_uptime(void);
-int sys_getppid(void); // project 1b
+int sys_getppid(void);  // project 1b
+int sys_getpinfo(void);  // project 2b
 
 #endif // _SYSFUNC_H_

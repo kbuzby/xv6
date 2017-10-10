@@ -93,3 +93,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// project 2b
+int sys_getpinfo(void)
+{
+  struct pstat p;
+
+  if (argint(0, (int *)&p) < 0)
+    return -1;
+  return getpinfo(&p);
+}
