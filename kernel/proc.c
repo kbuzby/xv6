@@ -284,24 +284,7 @@ scheduler(void)
         }
       }    
     }
-    // set process to run ticks
-    run->wait_ticks[run->priority] = 0;
-    ++run->ticks[run->priority];
-    if (run->priority && run->ticks[run->priority] % timeslice[run->priority] == 0) {
-      run->priority--;
-      run->wait_ticks[run->priority] = 0;
-    }
 
-    // increment wait ticks for all others
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->state == RUNNABLE && p != run) {
-        // possibly boost if it's too high
-        if (++p->wait_ticks[p->priority] >= 10 * timeslice[p->priority]) {
-          p->priority++;
-          p->wait_ticks[p->priority] = 0;
-        }
-      }
-    }
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
@@ -312,6 +295,25 @@ scheduler(void)
     switchkvm();
 
     proc = 0;
+
+    // set process to run ticks
+    run->wait_ticks[run->priority] = 0;
+    ++run->ticks[run->priority];
+    if (run->priority && ((run->ticks[run->priority] % timeslice[run->priority]) == 0)) {
+      run->priority--;
+      run->wait_ticks[run->priority] = 0;
+    }
+
+    // increment wait ticks for all others
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if (p->state == RUNNABLE && p != run) {
+        // possibly boost if it's too high
+        if (++p->wait_ticks[p->priority] >= (10 * timeslice[p->priority])) {
+          p->priority++;
+          p->wait_ticks[p->priority] = 0;
+        }
+      }
+    }
 
     release(&ptable.lock);
 
