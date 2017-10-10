@@ -286,7 +286,8 @@ scheduler(void)
     }
     // set process to run ticks
     run->wait_ticks[run->priority] = 0;
-    if (run->priority && ++run->ticks[run->priority] % timeslice[run->priority] == 0) {
+    ++run->ticks[run->priority];
+    if (run->priority && run->ticks[run->priority] % timeslice[run->priority] == 0) {
       run->priority--;
       run->wait_ticks[run->priority] = 0;
     }
@@ -488,7 +489,7 @@ int getpinfo(struct pstat* p) {
     p->state[i] = pr->state;
     for (int j=0; j < 4; j++) {
       p->ticks[i][j] = pr->ticks[j];
-      p->wait_ticks[i][j] = pr->ticks[j];
+      p->wait_ticks[i][j] = pr->wait_ticks[j];
     }
     i++;
   }
