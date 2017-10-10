@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "pstat.h"
 
 uint timeslice[4] = {0, 32, 16, 8};
 
@@ -479,8 +480,9 @@ int getpinfo(struct pstat* p) {
   struct proc* pr;
   int i = 0;
   acquire(&ptable.lock);
+  cprintf("populating pstat\n");
   for (pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
-    p->inuse[i] = pr->state != UNUSED;
+    p->inuse[i] = (pr->state != UNUSED);
     p->pid[i] = pr->pid;
     p->priority[i] = pr->priority;
     p->state[i] = pr->state;
@@ -488,6 +490,7 @@ int getpinfo(struct pstat* p) {
       p->ticks[i][j] = pr->ticks[j];
       p->wait_ticks[i][j] = pr->ticks[j];
     }
+    i++;
   }
   release(&ptable.lock);
   return 0;

@@ -86,6 +86,4 @@ struct proc {
 //   fixed-size stack
 //   expandable heap
 
-int getpinfo(struct pstat* p);
-
 #endif // _PROC_H_

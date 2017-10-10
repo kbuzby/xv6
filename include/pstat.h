@@ -14,4 +14,7 @@ struct pstat {
   int wait_ticks[NPROC][4]; // number of ticks each process has waited before being scheduled
 };
 
+
+int getpinfo(struct pstat* p);
+
 #endif
