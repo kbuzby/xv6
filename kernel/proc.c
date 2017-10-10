@@ -284,7 +284,7 @@ scheduler(void)
         }
       }    
     }
-    
+
     // set process to run ticks
     run->wait_ticks[run->priority] = 0;
     ++run->ticks[run->priority];
@@ -297,7 +297,9 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->state == RUNNABLE && p != run) {
         // possibly boost if it's too high
-        if (++p->wait_ticks[p->priority] >= (10 * timeslice[p->priority])) {
+        ++p->wait_ticks[p->priority];
+        if ((p->priority && p->wait_ticks[p->priority] >= (10 * timeslice[p->priority])) || 
+            (!p->priority && p->wait_ticks[p->priority] >= 500)) {
           p->priority++;
           p->wait_ticks[p->priority] = 0;
         }
