@@ -296,7 +296,7 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->state == RUNNABLE && p != run) {
         // possibly boost if it's too high
-        if (++p->wait_ticks[p->priority] > 10 * timeslice[p->priority]) {
+        if (++p->wait_ticks[p->priority] >= 10 * timeslice[p->priority]) {
           p->priority++;
           p->wait_ticks[p->priority] = 0;
         }
