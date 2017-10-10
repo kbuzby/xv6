@@ -479,6 +479,7 @@ procdump(void)
 int getpinfo(struct pstat* p) {
   struct proc* pr;
   int i = 0;
+
   acquire(&ptable.lock);
   for (pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
     p->inuse[i] = (pr->state != UNUSED);
