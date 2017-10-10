@@ -284,18 +284,7 @@ scheduler(void)
         }
       }    
     }
-
-    // Switch to chosen process.  It is the process's job
-    // to release ptable.lock and then reacquire it
-    // before jumping back to us.
-    proc = run;
-    switchuvm(run);
-    run->state = RUNNING;
-    swtch(&cpu->scheduler, proc->context);    
-    switchkvm();
-
-    proc = 0;
-
+    
     // set process to run ticks
     run->wait_ticks[run->priority] = 0;
     ++run->ticks[run->priority];
@@ -314,6 +303,17 @@ scheduler(void)
         }
       }
     }
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    proc = run;
+    switchuvm(run);
+    run->state = RUNNING;
+    swtch(&cpu->scheduler, proc->context);    
+    switchkvm();
+
+    proc = 0;
 
     release(&ptable.lock);
 
