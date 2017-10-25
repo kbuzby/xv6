@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "elf.h"
 
+#define CODE_OFFSET 0x2000
+
 extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
@@ -195,7 +197,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, (void*)CODE_OFFSET, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -209,6 +211,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
   if((uint)addr % PGSIZE != 0)
     panic("loaduvm: addr must be page aligned");
+  //addr += CODE_OFFSET;
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
@@ -237,6 +240,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     return oldsz;
 
   a = PGROUNDUP(oldsz);
+  //a += CODE_OFFSET;
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
