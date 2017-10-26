@@ -154,6 +154,7 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;

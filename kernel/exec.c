@@ -6,6 +6,8 @@
 #include "x86.h"
 #include "elf.h"
 
+#define CODE_OFFSET 0x2000
+
 int
 exec(char *path, char **argv)
 {
@@ -33,16 +35,16 @@ exec(char *path, char **argv)
 
   // Load program into memory.
   sz = 0;
-  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
+  for(i=0, off=elf.phoff; i<elf.phnum; i++, off += sizeof(ph)){
+    if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph)) 
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0)
+    if((sz = allocuvm(pgdir, sz + CODE_OFFSET, ph.va + ph.memsz)) == 0) 
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0)
+    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0) 
       goto bad;
   }
   iunlockput(ip);
@@ -78,6 +80,7 @@ exec(char *path, char **argv)
   for(last=s=path; *s; s++)
     if(*s == '/')
       last = s+1;
+
   safestrcpy(proc->name, last, sizeof(proc->name));
 
   // Commit to the user image.
