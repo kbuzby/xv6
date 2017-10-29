@@ -6,8 +6,6 @@
 #include "x86.h"
 #include "elf.h"
 
-#define CODE_OFFSET 0x2000
-
 int
 exec(char *path, char **argv)
 {
@@ -50,13 +48,12 @@ exec(char *path, char **argv)
   iunlockput(ip);
   ip = 0;
 
-  // Allocate a one-page stack at the next page boundary
-  sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+  // Allocate a one-page stack at end of address space
+  int stack_lim = PGROUNDUP(USERTOP - PGSIZE - 1);
+  if((sp = allocuvm(pgdir, stack_lim, stack_lim + PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
-  sp = sz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -89,6 +86,7 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  proc->stack_limit = stack_lim; // save this off for later
   switchuvm(proc);
   freevm(oldpgdir);
 

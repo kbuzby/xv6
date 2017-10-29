@@ -78,6 +78,8 @@ struct proc {
   uint priority;                // Priority for sceduling
   uint ticks[4];                // number of ticks accumulated at each level
   uint wait_ticks[4];           // number of ticks waited before scheduling
+  // project 3b
+  uint stack_limit;             // current limit of stack
 };
 
 // Process memory is laid out contiguously, low addresses first:

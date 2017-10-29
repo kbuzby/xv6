@@ -6,8 +6,6 @@
 #include "proc.h"
 #include "elf.h"
 
-#define CODE_OFFSET 0x2000
-
 extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
@@ -298,35 +296,47 @@ freevm(pde_t *pgdir)
   kfree((char*)pgdir);
 }
 
+int copyPages(pde_t* old_pgdir, pde_t* new_pgdir, uint i) {
+  pte_t *pte;
+  uint pa;
+  char *mem;
+
+  if((pte = walkpgdir(old_pgdir, (void*)i, 0)) == 0)
+    panic("copyuvm: pte should exist");
+  if(!(*pte & PTE_P))
+    panic("copyuvm: page not present");
+  pa = PTE_ADDR(*pte);
+  if((mem = kalloc()) == 0)
+    return 0;
+  memmove(mem, (char*)pa, PGSIZE);
+  if(mappages(new_pgdir, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+    return 0;
+  return 1;
+}
+
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint stack_lim)
 {
   pde_t *d;
-  pte_t *pte;
-  uint pa, i;
-  char *mem;
+  uint i;
 
   if((d = setupkvm()) == 0)
     return 0;
+  // copy code and heap
   for(i = CODE_OFFSET; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
-      goto bad;
+    if (!copyPages(pgdir, d, i)) goto bad;
+  }
+  // copy stack
+  for(i = stack_lim; i < USERTOP; i += PGSIZE) {
+    if (!copyPages(pgdir, d, i)) goto bad;
   }
   return d;
 
-bad:
-  freevm(d);
-  return 0;
+  bad:
+    freevm(d);
+    return 0;
 }
 
 // Map user virtual address to kernel physical address.

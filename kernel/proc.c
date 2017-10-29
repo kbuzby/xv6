@@ -9,8 +9,6 @@
 
 uint timeslice[4] = {0, 32, 16, 8};
 
-#define CODE_OFFSET 0x2000
-
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -148,7 +146,7 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stack_limit)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -156,6 +154,7 @@ fork(void)
   }
 
   np->sz = proc->sz;
+  np->stack_limit = proc->stack_limit;
   np->parent = proc;
   *np->tf = *proc->tf;
 
