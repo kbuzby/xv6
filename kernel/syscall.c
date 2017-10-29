@@ -38,10 +38,19 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
+  if (addr < CODE_OFFSET) 
+    return -1;
+  // not in between heap and stack space
+  if (addr >= p->sz && addr < p->stack_limit)
+    return -1;
+  // not above address space
   if(addr >= USERTOP)
     return -1;
   *pp = (char*)addr;
-  ep = (char*)USERTOP;
+  if (addr < p->sz)
+    ep = (char*)p->sz;
+  else  
+    ep = (char*)USERTOP;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
