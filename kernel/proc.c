@@ -136,6 +136,16 @@ growproc(int n)
   return 0;
 }
 
+int growstack() {
+  if ((proc->stack_limit - PGSIZE) - (5 * PGSIZE) < PGROUNDUP(proc->sz))
+      return -1;
+  if (allocuvm(proc->pgdir, proc->stack_limit - PGSIZE, proc->stack_limit) == 0)
+    return -1;
+  proc->stack_limit -= PGSIZE;
+  switchuvm(proc);
+  return 0;
+}
+
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.

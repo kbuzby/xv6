@@ -82,10 +82,14 @@ struct proc {
   uint stack_limit;             // current limit of stack
 };
 
+int growstack();
+
 // Process memory is laid out contiguously, low addresses first:
+//   2 empty pages
 //   text
 //   original data and bss
-//   fixed-size stack
 //   expandable heap
+//   >= 5 empty pages
+//   expandable stack
 
 #endif // _PROC_H_

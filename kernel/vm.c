@@ -238,7 +238,6 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     return oldsz;
 
   a = PGROUNDUP(oldsz);
-  //a += CODE_OFFSET;
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
