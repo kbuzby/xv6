@@ -121,6 +121,10 @@ growproc(int n)
   
   sz = proc->sz;
   if(n > 0){
+    // maintain >=5 pages between heap and stack
+    uint newsz = PGROUNDUP(sz+n);
+    if ((proc->stack_limit - (5 * PGSIZE)) < newsz)
+      return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
