@@ -17,6 +17,13 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
+  // not below code space
+  if (addr < CODE_OFFSET) 
+    return -1;
+  // not in between heap and stack space
+  if (addr >= p->sz && addr < p->stack_limit)
+    return -1;
+  // not above address space
   if(addr >= USERTOP || addr+4 > USERTOP)
     return -1;
   *ip = *(int*)(addr);
@@ -58,6 +65,13 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
+  // not below code space
+  if((uint)i < CODE_OFFSET)
+    return -1;
+  // not in between heap and stack
+  if((uint)i+size > proc->sz && (uint)i < proc->stack_limit)
+    return -1;
+  // not above address space
   if((uint)i >= USERTOP || (uint)i+size > USERTOP)
     return -1;
   *pp = (char*)i;
