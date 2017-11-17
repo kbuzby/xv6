@@ -5,9 +5,6 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "pstat.h"
-
-uint timeslice[4] = {0, 32, 16, 8};
 
 struct {
   struct spinlock lock;
@@ -71,14 +68,6 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  // project 2b
-  // set up scheduling stuff
-  p->priority = 3;
-  for (int i; i < 4; i++) {
-    p->ticks[i] = 0;
-    p->wait_ticks[i] = 0;
-  }
-
   return p;
 }
 
@@ -95,15 +84,15 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE + CODE_OFFSET;
+  p->sz = PGSIZE + USERBOT;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE + CODE_OFFSET;
-  p->tf->eip = CODE_OFFSET;  // beginning of initcode.S
+  p->tf->esp = PGSIZE + USERBOT;
+  p->tf->eip = USERBOT;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -121,10 +110,6 @@ growproc(int n)
   
   sz = proc->sz;
   if(n > 0){
-    // maintain >=5 pages between heap and stack
-    uint newsz = PGROUNDUP(sz+n);
-    if ((proc->stack_limit - (5 * PGSIZE)) < newsz)
-      return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -132,16 +117,6 @@ growproc(int n)
       return -1;
   }
   proc->sz = sz;
-  switchuvm(proc);
-  return 0;
-}
-
-int growstack() {
-  if ((proc->stack_limit - PGSIZE) - (5 * PGSIZE) < PGROUNDUP(proc->sz))
-      return -1;
-  if (allocuvm(proc->pgdir, proc->stack_limit - PGSIZE, proc->stack_limit) == 0)
-    return -1;
-  proc->stack_limit -= PGSIZE;
   switchuvm(proc);
   return 0;
 }
@@ -160,15 +135,13 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stack_limit)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
-
   np->sz = proc->sz;
-  np->stack_limit = proc->stack_limit;
   np->parent = proc;
   *np->tf = *proc->tf;
 
@@ -282,57 +255,31 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc* p;
-  
+  struct proc *p;
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    
+
+    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    struct proc* run;
-    // Loop over process table looking for process to run based on priority.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      // if process is actually runnable
-      if (p->state == RUNNABLE) {
-        if (!run || p->priority > run->priority || run->state != RUNNABLE) {
-          run = p;
-        }
-      }    
+      if(p->state != RUNNABLE)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      proc = 0;
     }
-
-    // set process to run ticks
-    run->wait_ticks[run->priority] = 0;
-    ++run->ticks[run->priority];
-    if (run->priority && ((run->ticks[run->priority] % timeslice[run->priority]) == 0)) {
-      run->priority--;
-      run->wait_ticks[run->priority] = 0;
-    }
-
-    // increment wait ticks for all others
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->state == RUNNABLE && p != run) {
-        // possibly boost if it's too high
-        ++p->wait_ticks[p->priority];
-        if ((p->priority && p->wait_ticks[p->priority] >= (10 * timeslice[p->priority])) || 
-            (!p->priority && p->wait_ticks[p->priority] >= 500)) {
-          p->priority++;
-          p->wait_ticks[p->priority] = 0;
-        }
-      }
-    }
-
-    // Switch to chosen process.  It is the process's job
-    // to release ptable.lock and then reacquire it
-    // before jumping back to us.
-    proc = run;
-    switchuvm(run);
-    run->state = RUNNING;
-    swtch(&cpu->scheduler, proc->context);    
-    switchkvm();
-
-    proc = 0;
-
     release(&ptable.lock);
 
   }
@@ -494,26 +441,5 @@ procdump(void)
     }
     cprintf("\n");
   }
-}
-
-// project 2b
-int getpinfo(struct pstat* p) {
-  struct proc* pr;
-  int i = 0;
-
-  acquire(&ptable.lock);
-  for (pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
-    p->inuse[i] = (pr->state != UNUSED);
-    p->pid[i] = pr->pid;
-    p->priority[i] = pr->priority;
-    p->state[i] = pr->state;
-    for (int j=0; j < 4; j++) {
-      p->ticks[i][j] = pr->ticks[j];
-      p->wait_ticks[i][j] = pr->wait_ticks[j];
-    }
-    i++;
-  }
-  release(&ptable.lock);
-  return 0;
 }
 

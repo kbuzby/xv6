@@ -2,6 +2,7 @@
 # user programs
 USER_PROGS := \
 	cat\
+	demo\
 	echo\
 	forktest\
 	grep\
@@ -16,8 +17,7 @@ USER_PROGS := \
 	tester\
 	usertests\
 	wc\
-	zombie\
-	testppid
+	zombie
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 

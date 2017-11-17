@@ -23,7 +23,5 @@
 #define SYS_sbrk   19
 #define SYS_sleep  20
 #define SYS_uptime 21
-#define SYS_getppid 22  // project 1b
-#define SYS_getpinfo 23  // project 2b
 
 #endif // _SYSCALL_H_

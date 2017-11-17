@@ -13,18 +13,19 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
+int
+isValid(struct proc* p, uint addr, uint n) {
+  int valid = 
+      ( (addr+n <= p->sz && addr >= USERBOT) ||
+        (addr+n <= USERTOP && addr+PGSIZE >= USERTOP) );
+  return valid;
+}
+
 // Fetch the int at addr from process p.
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  // not below code space
-  if (addr < CODE_OFFSET) 
-    return -1;
-  // not in between heap and stack space
-  if (addr >= p->sz && addr < p->stack_limit)
-    return -1;
-  // not above address space
-  if(addr >= USERTOP || addr+4 > USERTOP)
+  if (!isValid(p, addr, sizeof(uint)))
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -38,19 +39,11 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if (addr < CODE_OFFSET) 
-    return -1;
-  // not in between heap and stack space
-  if (addr >= p->sz && addr < p->stack_limit)
-    return -1;
-  // not above address space
-  if(addr >= USERTOP)
+  if (!isValid(p, addr, sizeof(char)))
     return -1;
   *pp = (char*)addr;
-  if (addr < p->sz)
-    ep = (char*)p->sz;
-  else  
-    ep = (char*)USERTOP;
+  if (addr >= USERTOP - PGSIZE) ep = (char*)USERTOP;
+  else ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
@@ -74,14 +67,7 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-  // not below code space
-  if((uint)i < CODE_OFFSET)
-    return -1;
-  // not in between heap and stack
-  if((uint)i+size > proc->sz && (uint)i < proc->stack_limit)
-    return -1;
-  // not above address space
-  if((uint)i >= USERTOP || (uint)i+size > USERTOP)
+  if (!isValid(proc, (uint) i, (uint) size))
     return -1;
   *pp = (char*)i;
   return 0;
@@ -126,9 +112,9 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
-[SYS_getppid] sys_getppid, // project 1b
-[SYS_getpinfo]  sys_getpinfo // project 2b
 };
+
+
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
 // is valid and then calls the appropriate handler for the syscall.

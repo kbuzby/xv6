@@ -2,7 +2,6 @@
 #define _USER_H_
 
 struct stat;
-struct pstat;
 
 // system calls
 int fork(void);
@@ -26,8 +25,6 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int getppid(void); // project 1b
-int getpinfo(struct pstat*);  // project 2b
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);

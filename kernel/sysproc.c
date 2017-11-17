@@ -5,7 +5,6 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
-#include "pstat.h"
 
 int
 sys_fork(void)
@@ -40,11 +39,6 @@ int
 sys_getpid(void)
 {
   return proc->pid;
-}
-
-// project 1b
-int sys_getppid(void) {
-  return proc->parent->pid;
 }
 
 int
@@ -93,14 +87,4 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
-}
-
-// project 2b
-int sys_getpinfo(void)
-{
-  struct pstat* p;
-
-  if (argptr(0, (void*)&p, sizeof(struct pstat*)) < 0)
-    return -1;
-  return getpinfo(p);
 }

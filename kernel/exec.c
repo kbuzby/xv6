@@ -32,25 +32,24 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = 0;
-  for(i=0, off=elf.phoff; i<elf.phnum; i++, off += sizeof(ph)){
-    if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph)) 
+  sz = USERBOT;
+  for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
+    if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if((sz = allocuvm(pgdir, sz + CODE_OFFSET, ph.va + ph.memsz)) == 0) 
+    if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0)
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0) 
+    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0)
       goto bad;
   }
   iunlockput(ip);
   ip = 0;
 
-  // Allocate a one-page stack at end of address space
-  int stack_lim = PGROUNDUP(USERTOP - PGSIZE - 1);
-  if((sp = allocuvm(pgdir, stack_lim, stack_lim + PGSIZE)) == 0)
+  // Allocate a one-page stack at the USERTOP
+  if((sp = allocuvm(pgdir, USERTOP-PGSIZE, USERTOP)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
@@ -77,16 +76,14 @@ exec(char *path, char **argv)
   for(last=s=path; *s; s++)
     if(*s == '/')
       last = s+1;
-
   safestrcpy(proc->name, last, sizeof(proc->name));
 
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
-  proc->sz = sz;
+  proc->sz = PGROUNDUP(sz);
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
-  proc->stack_limit = stack_lim; // save this off for later
   switchuvm(proc);
   freevm(oldpgdir);
 
