@@ -195,7 +195,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, (void*)CODE_OFFSET, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, (void *)USERBOT, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -209,7 +209,6 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
   if((uint)addr % PGSIZE != 0)
     panic("loaduvm: addr must be page aligned");
-  //addr += CODE_OFFSET;
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
@@ -295,47 +294,51 @@ freevm(pde_t *pgdir)
   kfree((char*)pgdir);
 }
 
-int copyPages(pde_t* old_pgdir, pde_t* new_pgdir, uint i) {
-  pte_t *pte;
-  uint pa;
-  char *mem;
-
-  if((pte = walkpgdir(old_pgdir, (void*)i, 0)) == 0)
-    panic("copyuvm: pte should exist");
-  if(!(*pte & PTE_P))
-    panic("copyuvm: page not present");
-  pa = PTE_ADDR(*pte);
-  if((mem = kalloc()) == 0)
-    return 0;
-  memmove(mem, (char*)pa, PGSIZE);
-  if(mappages(new_pgdir, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
-    return 0;
-  return 1;
-}
-
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz, uint stack_lim)
+copyuvm(pde_t *pgdir, uint sz)
 {
   pde_t *d;
-  uint i;
+  pte_t *pte;
+  uint pa, i;
+  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
-  // copy code and heap
-  for(i = CODE_OFFSET; i < sz; i += PGSIZE){
-    if (!copyPages(pgdir, d, i)) goto bad;
-  }
-  // copy stack
-  for(i = stack_lim; i < USERTOP; i += PGSIZE) {
-    if (!copyPages(pgdir, d, i)) goto bad;
-  }
-  return d;
 
-  bad:
-    freevm(d);
-    return 0;
+  // Copying code + heap
+  for(i = USERBOT; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+      goto bad;
+  }
+
+  // Copying one page of stack
+  for(i = USERTOP - PGSIZE; i < USERTOP; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+      goto bad;
+  }
+ return d;
+
+bad:
+  freevm(d);
+  return 0;
 }
 
 // Map user virtual address to kernel physical address.

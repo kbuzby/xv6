@@ -95,15 +95,15 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE + CODE_OFFSET;
+  p->sz = PGSIZE + USERBOT;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE + CODE_OFFSET;
-  p->tf->eip = CODE_OFFSET;  // beginning of initcode.S
+  p->tf->esp = PGSIZE + USERBOT;
+  p->tf->eip = USERBOT;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -160,7 +160,7 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stack_limit)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -168,7 +168,6 @@ fork(void)
   }
 
   np->sz = proc->sz;
-  np->stack_limit = proc->stack_limit;
   np->parent = proc;
   *np->tf = *proc->tf;
 
