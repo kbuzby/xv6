@@ -75,12 +75,14 @@ trap(struct trapframe *tf)
             cpu->id, tf->cs, tf->eip);
     lapiceoi();
     break;
+  /** comment out for p4b
   case T_PGFLT:;
     uint pageFaultAddr = rcr2();
     if (pageFaultAddr >= (proc->stack_limit - PGSIZE) && pageFaultAddr < USERTOP) {
       if (growstack() == 0)
         break;   
     }
+  */
 
   default:
     if(proc == 0 || (tf->cs&3) == 0){
