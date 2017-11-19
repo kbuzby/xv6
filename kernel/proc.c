@@ -105,6 +105,10 @@ userinit(void)
   p->tf->esp = PGSIZE + USERBOT;
   p->tf->eip = USERBOT;  // beginning of initcode.S
 
+  //threads
+  p->threads[0] = p->pid;
+  p->thread_ptr = p->threads;
+
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 

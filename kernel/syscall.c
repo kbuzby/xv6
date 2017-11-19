@@ -13,12 +13,24 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
+int isInValidStack(struct proc* p, uint addr, uint n) {
+  for (int i = 0; i < MAX_THREADS; i++) {
+    if (p->thread_ptr[i]) {
+      int thread_offset = 2 * PGSIZE * i;
+      if (addr+n <= (USERTOP - thread_offset) && addr >= (USERTOP - thread_offset - PGSIZE)) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
 int
 isValid(struct proc* p, uint addr, uint n) {
   int valid = 
       ( (addr+n <= p->sz && addr >= USERBOT) ||
-        (addr+n <= USERTOP && addr+PGSIZE >= USERTOP) ||
-        addr+n == 0);
+        isInValidStack(p, addr, n) ||
+        addr == 0);
   return valid;
 }
 
