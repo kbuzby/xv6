@@ -12,7 +12,7 @@
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
 
-#define MAX_THREADS 8
+#define MAX_THREADS 9 // main + 8
 
 // Per-CPU state
 struct cpu {
