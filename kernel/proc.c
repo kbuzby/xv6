@@ -305,7 +305,7 @@ int join(void) {
 
   // check if we have any child threads
   int haveThreads = 0;
-  for (int i = 1; i < MAX_THREADS; i++) {
+  for (int i = 0; i < MAX_THREADS - 1; i++) {
     if (proc->thread_ptr[i] != 0) {
       haveThreads = 1;
       break;
@@ -324,11 +324,14 @@ int join(void) {
       if(p->state == ZOMBIE){
         // check if this proc is one of our threads
         int thread;
-        for (thread = 1; thread < MAX_THREADS; thread++) {
+        for (thread = 1; thread < MAX_THREADS - 1; thread++) {
           if (p->pid == proc->thread_ptr[thread])
             break;
         }
-        if (thread >= MAX_THREADS) continue;
+        if (thread >= MAX_THREADS) {
+          haveThreads = 0;
+          continue;
+        }
         
         // Found one.
         pid = p->pid;
@@ -351,7 +354,7 @@ int join(void) {
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || proc->killed){
+    if(!havekids || !haveThreads || proc->killed){
       release(&ptable.lock);
       return -1;
     }
