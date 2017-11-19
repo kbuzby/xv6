@@ -419,56 +419,29 @@ scheduler(void)
 {
   struct proc* p;
   
-
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    
+
+    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    struct proc* run;
-    // Loop over process table looking for process to run based on priority.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      // if process is actually runnable
-      if (p->state == RUNNABLE) {
-        if (!run || p->priority > run->priority || run->state != RUNNABLE) {
-          run = p;
-        }
-      }    
+      if(p->state != RUNNABLE)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      proc = 0;
     }
-
-    // set process to run ticks
-    run->wait_ticks[run->priority] = 0;
-    ++run->ticks[run->priority];
-    if (run->priority && ((run->ticks[run->priority] % timeslice[run->priority]) == 0)) {
-      run->priority--;
-      run->wait_ticks[run->priority] = 0;
-    }
-
-    // increment wait ticks for all others
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->state == RUNNABLE && p != run) {
-        // possibly boost if it's too high
-        ++p->wait_ticks[p->priority];
-        if ((p->priority && p->wait_ticks[p->priority] >= (10 * timeslice[p->priority])) || 
-            (!p->priority && p->wait_ticks[p->priority] >= 500)) {
-          p->priority++;
-          p->wait_ticks[p->priority] = 0;
-        }
-      }
-    }
-
-    // Switch to chosen process.  It is the process's job
-    // to release ptable.lock and then reacquire it
-    // before jumping back to us.
-    //if (run->pid > 2) cprintf("switching to proc %d\n", run->pid);
-    proc = run;
-    switchuvm(run);
-    run->state = RUNNING;
-    swtch(&cpu->scheduler, proc->context);    
-    switchkvm();
-
-    proc = 0;
-
     release(&ptable.lock);
 
   }
