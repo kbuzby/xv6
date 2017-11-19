@@ -29,6 +29,7 @@ int uptime(void);
 int getppid(void); // project 1b
 int getpinfo(struct pstat*);  // project 2b
 int clone(void(*fcn)(void*), void* arg); // project 4b
+int join(void);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);

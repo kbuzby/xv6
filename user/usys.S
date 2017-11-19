@@ -32,4 +32,5 @@ SYSCALL(uptime)
 SYSCALL(getppid)
 SYSCALL(getpinfo)
 SYSCALL(clone)
+SYSCALL(join)
 
