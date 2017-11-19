@@ -369,6 +369,8 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc)
         continue;
+      if (p->thread_ptr[0] != p->pid)
+        continue;
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
@@ -388,6 +390,7 @@ wait(void)
 
     // No point waiting if we don't have any children.
     if(!havekids || proc->killed){
+      //cprintf("don't have kids\n");
       release(&ptable.lock);
       return -1;
     }
