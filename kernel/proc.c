@@ -79,13 +79,6 @@ found:
     p->wait_ticks[i] = 0;
   }
 
-  // project 4b
-  // set up threads
-  for (int i = 0; i < MAX_THREADS; i++) {
-
-  }
-  p->threads[0] = p->pid;
-
   return p;
 }
 
@@ -197,9 +190,9 @@ int clone(void(*fcn)(void*), void* arg) {
 
   // set up the args and return 
   np->tf->esp -= sizeof(uint);
-  *(uint*)np->tf->esp = 0xffffffff; // fake return PC
+  *(uint*)np->tf->esp = (uint)arg; // fake return PC
   np->tf->esp -= sizeof(void*);
-  *(uint*)np->tf->esp = (uint)arg;
+  *(uint*)np->tf->esp = 0xffffffff;
  
   pid = np->pid;
   np->state = RUNNABLE;

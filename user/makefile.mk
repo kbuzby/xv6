@@ -3,6 +3,7 @@
 USER_PROGS := \
 	cat\
 	demo\
+	demo2\
 	echo\
 	forktest\
 	grep\
