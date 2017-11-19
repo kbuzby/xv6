@@ -161,7 +161,7 @@ int clone(void(*fcn)(void*), void* arg) {
 
   // check if we can allocate this thread
   int thread_ok = 0;
-  for (thread = 0; thread < MAX_THREADS; thread++) {
+  for (thread = 1; thread < MAX_THREADS; thread++) {
     if (proc->thread_ptr[thread] == 0) {
       proc->thread_ptr[thread] = np->pid; 
       thread_ok = 1;
@@ -228,9 +228,6 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
-
-  np->threads[0] = np->pid;
-  np->thread_ptr = np->threads;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -314,6 +311,9 @@ int join(void) {
     // Scan through threads looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
+        continue;
+      havekids = 1;
       if(p->state == ZOMBIE){
         // check if this proc is one of our threads
         int thread;
@@ -321,9 +321,8 @@ int join(void) {
           if (p->pid == proc->thread_ptr[thread])
             break;
         }
-        if (thread >= MAX_THREADS)
-          continue;
-        havekids = 1;
+        if (thread >= MAX_THREADS) continue;
+        
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
@@ -368,7 +367,7 @@ wait(void)
     // Scan through table looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != proc || p->thread_ptr[0] != p->pid)
+      if(p->parent != proc)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
