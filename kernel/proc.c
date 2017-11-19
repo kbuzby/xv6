@@ -79,6 +79,13 @@ found:
     p->wait_ticks[i] = 0;
   }
 
+  // project 4b
+  // set up threads
+  for (int i = 0; i < MAX_THREADS; i++) {
+
+  }
+  p->threads[0] = p->pid;
+
   return p;
 }
 
@@ -121,9 +128,9 @@ growproc(int n)
   
   sz = proc->sz;
   if(n > 0){
-    // maintain >=5 pages between heap and stack
+    // maintain >=18 pages between heap and USERTOP
     uint newsz = PGROUNDUP(sz+n);
-    if ((proc->stack_limit - (5 * PGSIZE)) < newsz)
+    if (newsz > (USERTOP - (18 * PGSIZE)))
       return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -136,7 +143,7 @@ growproc(int n)
   return 0;
 }
 
-int growstack() {
+/*int growstack() {
   if ((proc->stack_limit - PGSIZE) - (5 * PGSIZE) < PGROUNDUP(proc->sz))
       return -1;
   if (allocuvm(proc->pgdir, proc->stack_limit - PGSIZE, proc->stack_limit) == 0)
@@ -144,6 +151,60 @@ int growstack() {
   proc->stack_limit -= PGSIZE;
   switchuvm(proc);
   return 0;
+}*/
+
+// probject 4b
+int clone(void(*fcn)(void*), void* arg) {
+  int i, pid, thread;
+  struct proc *np;
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+
+  // check if we can allocate this thread
+  int thread_ok = 0;
+  for (thread = 0; thread < MAX_THREADS; thread++) {
+    if (proc->thread_ptr[thread] == 0) {
+      proc->thread_ptr[thread] = np->pid; 
+      thread_ok = 1;
+      break;
+    }     
+  }
+  if (!thread_ok)
+    return -1;
+
+  // Point np pgdir to p
+  np->pgdir = proc->pgdir;
+
+  np->sz = proc->sz;
+  np->parent = proc;
+  np->thread_ptr = proc->thread_ptr;
+  *np->tf = *proc->tf;
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+
+  // set up the stack
+  int thread_offset = 2 * PGSIZE * thread;
+  if((np->tf->esp = allocuvm(np->pgdir, USERTOP - PGSIZE - thread_offset, USERTOP - thread_offset)) == 0) 
+    return -1;
+  
+  // set the instruction pointer to the supplied function
+  np->tf->eip = (uint)fcn;
+
+  // set up the args and return 
+  np->tf->esp -= sizeof(uint);
+  *(uint*)np->tf->esp = 0xffffffff; // fake return PC
+  np->tf->esp -= sizeof(void*);
+  *(uint*)np->tf->esp = (uint)arg;
+ 
+  pid = np->pid;
+  np->state = RUNNABLE;
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+  return pid;
 }
 
 // Create a new process copying p as the parent.
@@ -178,8 +239,15 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
+
  
   pid = np->pid;
+
+  memset(np->threads, 0, sizeof(uint) * 8); // make sure this is cleared
+  // mark this as the first thread of the process
+  np->threads[0] = pid;
+  np->thread_ptr = np->threads;
+
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;

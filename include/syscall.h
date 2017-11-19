@@ -25,5 +25,6 @@
 #define SYS_uptime 21
 #define SYS_getppid 22  // project 1b
 #define SYS_getpinfo 23  // project 2b
+#define SYS_clone  24   // project 4b
 
 #endif // _SYSCALL_H_

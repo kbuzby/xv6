@@ -12,6 +12,8 @@
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
 
+#define MAX_THREADS 8
+
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -78,8 +80,9 @@ struct proc {
   uint priority;                // Priority for sceduling
   uint ticks[4];                // number of ticks accumulated at each level
   uint wait_ticks[4];           // number of ticks waited before scheduling
-  // project 3b
-  uint stack_limit;             // current limit of stack
+  // project 4b
+  uint threads[MAX_THREADS];
+  uint* thread_ptr;
 };
 
 int growstack();

@@ -113,7 +113,8 @@ static int (*syscalls[])(void) = {
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
 [SYS_getppid] sys_getppid, // project 1b
-[SYS_getpinfo]  sys_getpinfo // project 2b
+[SYS_getpinfo]  sys_getpinfo, // project 2b
+[SYS_clone]   sys_clone // project 4b
 };
 
 
