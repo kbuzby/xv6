@@ -305,7 +305,7 @@ int join(void) {
 
   // check if we have any child threads
   int haveThreads = 0;
-  for (int i = 0; i < MAX_THREADS - 1; i++) {
+  for (int i = 1; i < MAX_THREADS; i++) {
     if (proc->thread_ptr[i] != 0) {
       haveThreads = 1;
       break;
@@ -324,7 +324,7 @@ int join(void) {
       if(p->state == ZOMBIE){
         // check if this proc is one of our threads
         int thread;
-        for (thread = 1; thread < MAX_THREADS - 1; thread++) {
+        for (thread = 1; thread < MAX_THREADS; thread++) {
           if (p->pid == proc->thread_ptr[thread])
             break;
         }
