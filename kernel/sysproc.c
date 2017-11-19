@@ -119,3 +119,8 @@ int sys_clone(void)
 
   return clone(fcn, arg);
 }
+
+int sys_join(void) {
+
+  return join();
+}
