@@ -17,7 +17,8 @@ int
 isValid(struct proc* p, uint addr, uint n) {
   int valid = 
       ( (addr+n <= p->sz && addr >= USERBOT) ||
-        (addr+n <= USERTOP && addr+PGSIZE >= USERTOP) );
+        (addr+n <= USERTOP && addr+PGSIZE >= USERTOP) ||
+        addr+n == 0);
   return valid;
 }
 
@@ -67,7 +68,8 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-  if (!isValid(proc, (uint) i, (uint) size))
+
+  if (!isValid(proc, (uint) i, (uint) size) && i != 0) //allow null references
     return -1;
   *pp = (char*)i;
   return 0;
