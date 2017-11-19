@@ -258,19 +258,26 @@ exit(void)
   struct proc *p;
   int fd;
 
+  proc->state = ZOMBIE;
+
   if(proc == initproc)
     panic("init exiting");
 
-  // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(proc->ofile[fd]){
-      fileclose(proc->ofile[fd]);
-      proc->ofile[fd] = 0;
+  int isMainThread = proc->thread_ptr[0] == proc->pid;
+
+  if (isMainThread) {
+    // Close all open files.
+    for(fd = 0; fd < NOFILE; fd++){
+      if(proc->ofile[fd]){
+        fileclose(proc->ofile[fd]);
+        proc->ofile[fd] = 0;
+      }
     }
+
+    iput(proc->cwd);
+    proc->cwd = 0;
   }
 
-  iput(proc->cwd);
-  proc->cwd = 0;
 
   acquire(&ptable.lock);
 
@@ -287,8 +294,8 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
-  proc->state = ZOMBIE;
   sched();
+  cprintf("%d\n", proc->pid);
   panic("zombie exit");
 }
 
@@ -453,6 +460,7 @@ scheduler(void)
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
+    //if (run->pid > 2) cprintf("switching to proc %d\n", run->pid);
     proc = run;
     switchuvm(run);
     run->state = RUNNING;
