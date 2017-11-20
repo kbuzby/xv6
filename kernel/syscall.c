@@ -15,7 +15,7 @@
 
 int isInValidStack(struct proc* p, uint addr, uint n) {
   for (int i = 0; i < MAX_THREADS; i++) {
-    if (p->thread_ptr[i]) {
+    if (p->thread_ptr[i] == p->pid) {
       int thread_offset = 2 * PGSIZE * i;
       if (addr+n <= (USERTOP - thread_offset) && addr >= (USERTOP - thread_offset - PGSIZE)) {
         return 1;
@@ -55,7 +55,13 @@ fetchstr(struct proc *p, uint addr, char **pp)
   if (!isValid(p, addr, sizeof(char)))
     return -1;
   *pp = (char*)addr;
-  if (addr >= USERTOP - PGSIZE) ep = (char*)USERTOP;
+  int i;
+  for (i = 0; i < MAX_THREADS; i++) {
+    if (p->thread_ptr[i] == p->pid)
+      break;
+  }
+  int thread_offset = 2 * PGSIZE * i;
+  if (addr >= USERTOP - PGSIZE - thread_offset) ep = (char*)(USERTOP - thread_offset);
   else ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
