@@ -1,6 +1,8 @@
 #ifndef _USER_H_
 #define _USER_H_
 
+#include "lock.h" 
+
 struct stat;
 struct pstat;
 
@@ -30,6 +32,9 @@ int getppid(void); // project 1b
 int getpinfo(struct pstat*);  // project 2b
 int clone(void(*fcn)(void*), void* arg); // project 4b
 int join(void);
+int cv_init(cond_t*);
+int cv_wait(cond_t*, lock_t*);
+int cv_signal(cond_t*);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);
@@ -44,6 +49,17 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+// thread library functions (threadlib.c)
+void lock_init(lock_t*);
+void lock_acquire(lock_t*);
+void lock_release(lock_t*);
+void cond_init(cond_t*);
+void cond_wait(cond_t*, lock_t*);
+void cond_signal(cond_t*);
+void sem_init(sem_t*, int);
+void sem_wait(sem_t*);
+void sem_post(sem_t*);
 
 #endif // _USER_H_
 

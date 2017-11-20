@@ -27,5 +27,8 @@ int sys_getppid(void);  // project 1b
 int sys_getpinfo(void);  // project 2b
 int sys_clone(void);    // project 4b
 int sys_join(void);
+int sys_cv_init(void);
+int sys_cv_wait(void);
+int sys_cv_signal(void);
 
 #endif // _SYSFUNC_H_

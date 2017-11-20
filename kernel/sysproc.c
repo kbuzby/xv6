@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "sysfunc.h"
 #include "pstat.h"
+#include "lock.h"
 
 int
 sys_fork(void)
@@ -121,6 +122,32 @@ int sys_clone(void)
 }
 
 int sys_join(void) {
-
   return join();
+}
+
+int sys_cv_init(void) {
+  cond_t* cv;
+
+  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
+    return -1;
+  return cv_init(cv);
+}
+
+int sys_cv_wait(void) {
+  cond_t* cv;
+  lock_t* m;
+
+  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
+    return -1;
+  if (argptr(1, (void*)&m, sizeof(lock_t*)))
+    return -1;
+  return cv_wait(cv, m);
+}
+
+int sys_cv_signal(void) {
+  cond_t* cv;
+
+  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
+    return -1;
+  return cv_signal(cv);
 }

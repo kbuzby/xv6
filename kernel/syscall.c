@@ -135,7 +135,10 @@ static int (*syscalls[])(void) = {
 [SYS_getppid]   sys_getppid,  // project 1b
 [SYS_getpinfo]  sys_getpinfo, // project 2b
 [SYS_clone]     sys_clone,    // project 4b
-[SYS_join]      sys_join
+[SYS_join]      sys_join,
+[SYS_cv_init]   sys_cv_init,
+[SYS_cv_wait]   sys_cv_wait,
+[SYS_cv_signal] sys_cv_signal
 };
 
 

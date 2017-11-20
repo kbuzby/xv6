@@ -33,4 +33,7 @@ SYSCALL(getppid)
 SYSCALL(getpinfo)
 SYSCALL(clone)
 SYSCALL(join)
+SYSCALL(cv_init)
+SYSCALL(cv_wait)
+SYSCALL(cv_signal)
 

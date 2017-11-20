@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "pstat.h"
+#include "lock.h"
 
 uint timeslice[4] = {0, 32, 16, 8};
 
@@ -629,3 +630,14 @@ int getpinfo(struct pstat* p) {
   return 0;
 }
 
+int cv_init(cond_t* cv) {
+  return -1;
+}
+
+int cv_wait(cond_t* cv, lock_t* m) {
+  return -1;
+}
+
+int cv_signal(cond_t* cv) {
+  return -1;
+}

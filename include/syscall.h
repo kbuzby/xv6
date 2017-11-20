@@ -27,5 +27,8 @@
 #define SYS_getpinfo    23  // project 2b
 #define SYS_clone       24  // project 4b
 #define SYS_join        25
+#define SYS_cv_init     26
+#define SYS_cv_wait     27
+#define SYS_cv_signal   28
 
 #endif // _SYSCALL_H_
