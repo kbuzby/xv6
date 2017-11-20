@@ -15,6 +15,8 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+struct spinlock sz_lock;
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -27,6 +29,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&sz_lock, "sz_lock");
 }
 
 // Look in the process table for an UNUSED proc.
@@ -117,6 +120,20 @@ userinit(void)
   release(&ptable.lock);
 }
 
+void updateSzForThreads(struct proc* p, uint newsz) {
+  struct proc* q;
+  acquire(&ptable.lock);
+  for (int i = 1; i < MAX_THREADS; i++) {
+    for(q = ptable.proc; q < &ptable.proc[NPROC]; q++) {
+      if (p->thread_ptr[i] == q->pid) {
+        q->sz = newsz;
+        break;
+      }
+    }
+  }
+  release(&ptable.lock);
+}
+
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
 int
@@ -124,6 +141,7 @@ growproc(int n)
 {
   uint sz;
   
+  acquire(&sz_lock);
   sz = proc->sz;
   if(n > 0){
     // maintain >=18 pages between heap and USERTOP
@@ -137,6 +155,20 @@ growproc(int n)
       return -1;
   }
   proc->sz = sz;
+  if (proc->thread_ptr[0] == proc->pid) {
+    proc->sz = sz;
+    updateSzForThreads(proc, sz);
+  }
+  else {
+    // find the parent
+    struct proc* p = proc;
+    while(p->thread_ptr[0] != p->pid) {
+      p = p->parent;
+    }
+    p->sz = sz;
+    updateSzForThreads(p, sz);
+  }
+  release(&sz_lock);
   switchuvm(proc);
   return 0;
 }
