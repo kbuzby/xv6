@@ -662,14 +662,62 @@ int getpinfo(struct pstat* p) {
   return 0;
 }
 
+void cv_enqueue(cond_t* cv) {
+  cv->queue[cv->tail] = proc;
+  if (++cv->tail == MAX_THREADS) 
+    cv->tail = 0;
+  return;
+}
+
+struct proc* cv_dequeue(cond_t* cv) {
+  struct proc* p = cv->queue[cv->head];
+  if (++cv->head == MAX_THREADS) 
+    cv->head = 0;
+  return p;
+}
+
 int cv_init(cond_t* cv) {
-  return -1;
+  cv->head = 0;
+  cv->tail = 0;
+  return 0;
+}
+
+void
+lock_acquire(lock_t *m) {
+  while (xchg(m, 1) != 0); 
+}
+
+void
+lock_release(lock_t *m) {
+  *m = 0;
+}
+
+void cv_sleep(lock_t* m) {
+  acquire(&ptable.lock); 
+  lock_release(m);
+
+  // Go to sleep.
+  proc->state = SLEEPING;
+  sched();
+
+  release(&ptable.lock);
+  lock_acquire(m);
 }
 
 int cv_wait(cond_t* cv, lock_t* m) {
-  return -1;
+  cv_enqueue(cv);
+  cv_sleep(m);
+  return 0;
+}
+
+void cv_wakeup(struct proc* p) {
+  acquire(&ptable.lock);
+  p->state = RUNNABLE;
+  release(&ptable.lock);
 }
 
 int cv_signal(cond_t* cv) {
-  return -1;
+  struct proc* p = cv_dequeue(cv);
+  cv_wakeup(p);
+  return 0;
 }

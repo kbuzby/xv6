@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "lock.h"
 
+
 void
 lock_init(lock_t *m) {
   *m = 0;

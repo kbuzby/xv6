@@ -2,11 +2,15 @@
 #define _LOCK_H_
 
 #include "types.h"
+#include "param.h"
+#include "x86.h"
 
 typedef uint lock_t;
 
 typedef struct {
-    int cond;
+    uint head;
+    uint tail;
+    struct proc* queue[MAX_THREADS];
 } cond_t;
 
 typedef struct {
