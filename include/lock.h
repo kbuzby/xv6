@@ -10,7 +10,7 @@ typedef uint lock_t;
 typedef struct {
     uint head;
     uint tail;
-    struct proc* queue[MAX_THREADS];
+    void* queue[MAX_THREADS];
 } cond_t;
 
 typedef struct {
