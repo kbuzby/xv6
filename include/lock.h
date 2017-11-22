@@ -8,6 +8,7 @@
 typedef uint lock_t;
 
 typedef struct {
+    lock_t guard;
     uint head;
     uint tail;
     void* queue[MAX_THREADS];

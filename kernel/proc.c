@@ -662,24 +662,9 @@ int getpinfo(struct pstat* p) {
   return 0;
 }
 
-void cv_enqueue(cond_t* cv) {
-  cv->queue[cv->tail] = (void*)proc;
-  if (++cv->tail == MAX_THREADS) 
-    cv->tail = 0;
-  return;
-}
-
-void* cv_dequeue(cond_t* cv) {
-  void* p = cv->queue[cv->head];
-  if (++cv->head == MAX_THREADS) 
-    cv->head = 0;
-  return p;
-}
-
-int cv_init(cond_t* cv) {
-  cv->head = 0;
-  cv->tail = 0;
-  return 0;
+void
+lock_init(lock_t *m) {
+  *m = 0;
 }
 
 void
@@ -692,30 +677,56 @@ lock_release(lock_t *m) {
   *m = 0;
 }
 
-void cv_sleep(lock_t* m) {
-  acquire(&ptable.lock); 
-  lock_release(m);
+void cv_enqueue(cond_t* cv) {
+  cv->queue[cv->tail++] = (void*)proc;
+  if (cv->tail == MAX_THREADS) 
+    cv->tail = 0;
+  return;
+}
 
-  // Go to sleep.
-  proc->chan = (void*)proc;
-  proc->state = SLEEPING;
-  sched();
+void cv_dequeue(cond_t* cv) {
+  if (++cv->head == MAX_THREADS) 
+    cv->head = 0;
+  return;
+}
 
-  // clean up
-  proc->chan = 0;
-
-  release(&ptable.lock);
-  lock_acquire(m);
+int cv_init(cond_t* cv) {
+  cv->head = 0;
+  cv->tail = 0;
+  lock_init(&cv->guard);
+  return 0;
 }
 
 int cv_wait(cond_t* cv, lock_t* m) {
+  if (!*m) return -1;
+  lock_acquire(&cv->guard);
+  acquire(&ptable.lock);
+  lock_release(m);
   cv_enqueue(cv);
-  cv_sleep(m);
+  lock_release(&cv->guard);
+
+  // Go to sleep.
+  proc->state = SLEEPING;
+  sched();
+
+  release(&ptable.lock);
+
+  lock_acquire(&cv->guard);
+  lock_acquire(m);
+  cv_dequeue(cv);
+  lock_release(&cv->guard);
   return 0;
 }
 
 int cv_signal(cond_t* cv) {
-  void* p = cv_dequeue(cv);
-  wakeup(p);
-  return 0;
+  lock_acquire(&cv->guard);
+  if (cv->head == cv->tail) {
+    lock_release(&cv->guard);
+    return 0;
+  }
+  acquire(&ptable.lock);
+  lock_release(&cv->guard);
+  ((struct proc*)cv->queue[cv->head])->state = RUNNABLE;
+  release(&ptable.lock);
+  return 1;
 }
