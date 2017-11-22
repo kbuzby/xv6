@@ -40,7 +40,7 @@ void
 sem_init(sem_t *s, int value) {
   s->value = value;
   cond_init(&s->cond);
-  s->lock = 0;
+  lock_init(&s->lock);
 }
 
 void
