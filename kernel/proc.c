@@ -681,7 +681,7 @@ lock_release(lock_t *m) {
 
 void cv_enqueue(cond_t* cv) {
   cv->queue[cv->tail] = (void*)proc;
-  if (++cv->tail == (MAX_THREADS-1)) 
+  if (++cv->tail == (MAX_THREADS)) 
     cv->tail = 0;
   return;
 }
@@ -719,9 +719,9 @@ int cv_signal(cond_t* cv) {
   }
   acquire(&ptable.lock);
   ((struct proc*)cv->queue[cv->head++])->state = RUNNABLE;
-  if (cv->head == (MAX_THREADS-1)) 
+  if (cv->head == (MAX_THREADS)) 
     cv->head = 0;
-  lock_release(&cv->guard);
   release(&ptable.lock);
+  lock_release(&cv->guard);
   return 1;
 }

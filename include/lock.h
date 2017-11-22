@@ -11,7 +11,7 @@ typedef struct {
     lock_t guard;
     uint head;
     uint tail;
-    void* queue[MAX_THREADS-1];
+    void* queue[MAX_THREADS];
 } cond_t;
 
 typedef struct {
