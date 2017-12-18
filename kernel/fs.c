@@ -349,10 +349,7 @@ bmap(struct inode *ip, uint bn)
       a[bn] = addr = balloc(ip->dev);
       bwrite(bp);
       brelse(bp);
-      ilock(ip);
       ip->type = T_FILE;
-      iupdate(ip);
-      iunlock(ip);
       return addr;
     }
     else {
