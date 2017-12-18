@@ -331,7 +331,7 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
-  if(bn < NDIRECT){
+  if(bn < NDIRECT || (bn < NDIRECT + 1 && ip->type == T_SMART)){
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
@@ -340,16 +340,34 @@ bmap(struct inode *ip, uint bn)
 
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0)
+    if (ip->type == T_SMART) {
+      uint old_addr = ip->addrs[NDIRECT];
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
-    bp = bread(ip->dev, addr);
-    a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
+      bp = bread(ip->dev, addr);
+      a = (uint*)bp->data;
+      a[bn-1] = old_addr;
       a[bn] = addr = balloc(ip->dev);
       bwrite(bp);
+      brelse(bp);
+      ilock(ip);
+      ip->type = T_FILE;
+      iupdate(ip);
+      iunlock(ip);
+      return addr;
     }
-    brelse(bp);
-    return addr;
+    else {
+      if((addr = ip->addrs[NDIRECT]) == 0)
+        ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+          // read the indirect block
+      bp = bread(ip->dev, addr);
+      a = (uint*)bp->data;
+      if((addr = a[bn]) == 0){
+        a[bn] = addr = balloc(ip->dev);
+        bwrite(bp);
+      }
+      brelse(bp);
+      return addr;
+    }
   }
 
   panic("bmap: out of range");
@@ -373,13 +391,15 @@ itrunc(struct inode *ip)
   }
   
   if(ip->addrs[NDIRECT]){
-    bp = bread(ip->dev, ip->addrs[NDIRECT]);
-    a = (uint*)bp->data;
-    for(j = 0; j < NINDIRECT; j++){
-      if(a[j])
-        bfree(ip->dev, a[j]);
+    if (ip->type != T_SMART) {
+      bp = bread(ip->dev, ip->addrs[NDIRECT]);
+      a = (uint*)bp->data;
+      for(j = 0; j < NINDIRECT; j++){
+        if(a[j])
+          bfree(ip->dev, a[j]);
+      }
+      brelse(bp);
     }
-    brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
   }
