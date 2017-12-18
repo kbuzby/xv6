@@ -5,17 +5,11 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "pstat.h"
-#include "lock.h"
-
-uint timeslice[4] = {0, 32, 16, 8};
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
-
-struct spinlock sz_lock;
 
 static struct proc *initproc;
 
@@ -29,7 +23,6 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  initlock(&sz_lock, "sz_lock");
 }
 
 // Look in the process table for an UNUSED proc.
@@ -75,14 +68,6 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  // project 2b
-  // set up scheduling stuff
-  p->priority = 3;
-  for (int i; i < 4; i++) {
-    p->ticks[i] = 0;
-    p->wait_ticks[i] = 0;
-  }
-
   return p;
 }
 
@@ -99,38 +84,20 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE + USERBOT;
+  p->sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE + USERBOT;
-  p->tf->eip = USERBOT;  // beginning of initcode.S
-
-  //threads
-  p->threads[0] = p->pid;
-  p->thread_ptr = p->threads;
+  p->tf->esp = PGSIZE;
+  p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  release(&ptable.lock);
-}
-
-void updateSzForThreads(struct proc* p, uint newsz) {
-  struct proc* q;
-  acquire(&ptable.lock);
-  for (int i = 1; i < MAX_THREADS; i++) {
-    for(q = ptable.proc; q < &ptable.proc[NPROC]; q++) {
-      if (p->thread_ptr[i] == q->pid) {
-        q->sz = newsz;
-        break;
-      }
-    }
-  }
   release(&ptable.lock);
 }
 
@@ -141,13 +108,8 @@ growproc(int n)
 {
   uint sz;
   
-  acquire(&sz_lock);
   sz = proc->sz;
   if(n > 0){
-    // maintain >=18 pages between heap and USERTOP
-    uint newsz = PGROUNDUP(sz+n);
-    if (newsz > (USERTOP - (18 * PGSIZE)))
-      return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -155,86 +117,8 @@ growproc(int n)
       return -1;
   }
   proc->sz = sz;
-  if (proc->thread_ptr[0] == proc->pid) {
-    proc->sz = sz;
-    updateSzForThreads(proc, sz);
-  }
-  else {
-    // find the parent
-    struct proc* p = proc;
-    while(p->thread_ptr[0] != p->pid) {
-      p = p->parent;
-    }
-    p->sz = sz;
-    updateSzForThreads(p, sz);
-  }
-  release(&sz_lock);
   switchuvm(proc);
   return 0;
-}
-
-/*int growstack() {
-  if ((proc->stack_limit - PGSIZE) - (5 * PGSIZE) < PGROUNDUP(proc->sz))
-      return -1;
-  if (allocuvm(proc->pgdir, proc->stack_limit - PGSIZE, proc->stack_limit) == 0)
-    return -1;
-  proc->stack_limit -= PGSIZE;
-  switchuvm(proc);
-  return 0;
-}*/
-
-// probject 4b
-int clone(void(*fcn)(void*), void* arg) {
-  int i, pid, thread;
-  struct proc *np;
-
-  // Allocate process.
-  if((np = allocproc()) == 0)
-    return -1;
-
-  // check if we can allocate this thread
-  int thread_ok = 0;
-  for (thread = 1; thread < MAX_THREADS; thread++) {
-    if (proc->thread_ptr[thread] == 0) {
-      proc->thread_ptr[thread] = np->pid; 
-      thread_ok = 1;
-      break;
-    }     
-  }
-  if (!thread_ok)
-    return -1;
-
-  // Point np pgdir to p
-  np->pgdir = proc->pgdir;
-
-  np->sz = proc->sz;
-  np->parent = proc;
-  np->thread_ptr = proc->thread_ptr;
-  *np->tf = *proc->tf;
-
-  for(i = 0; i < NOFILE; i++)
-    if(proc->ofile[i])
-      np->ofile[i] = filedup(proc->ofile[i]);
-  np->cwd = idup(proc->cwd);
-
-  // set up the stack
-  int thread_offset = 2 * PGSIZE * thread;
-  if((np->tf->esp = allocuvm(np->pgdir, USERTOP - PGSIZE - thread_offset, USERTOP - thread_offset)) == 0) 
-    return -1;
-  
-  // set the instruction pointer to the supplied function
-  np->tf->eip = (uint)fcn;
-
-  // set up the args and return 
-  np->tf->esp -= sizeof(uint);
-  *(uint*)np->tf->esp = (uint)arg; 
-  np->tf->esp -= sizeof(void*);
-  *(uint*)np->tf->esp = 0xffffffff; // fake return PC
- 
-  pid = np->pid;
-  np->state = RUNNABLE;
-  safestrcpy(np->name, proc->name, sizeof(proc->name));
-  return pid;
 }
 
 // Create a new process copying p as the parent.
@@ -257,7 +141,6 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
-
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -271,12 +154,6 @@ fork(void)
   np->cwd = idup(proc->cwd);
  
   pid = np->pid;
-
-  memset(np->threads, 0, sizeof(uint) * MAX_THREADS); // make sure this is cleared
-  // mark this as the first thread of the process
-  np->threads[0] = pid;
-  np->thread_ptr = np->threads;
-
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
@@ -291,26 +168,19 @@ exit(void)
   struct proc *p;
   int fd;
 
-  proc->state = ZOMBIE;
-
   if(proc == initproc)
     panic("init exiting");
 
-  int isMainThread = proc->thread_ptr[0] == proc->pid;
-
-  if (isMainThread) {
-    // Close all open files.
-    for(fd = 0; fd < NOFILE; fd++){
-      if(proc->ofile[fd]){
-        fileclose(proc->ofile[fd]);
-        proc->ofile[fd] = 0;
-      }
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+    if(proc->ofile[fd]){
+      fileclose(proc->ofile[fd]);
+      proc->ofile[fd] = 0;
     }
-
-    iput(proc->cwd);
-    proc->cwd = 0;
   }
 
+  iput(proc->cwd);
+  proc->cwd = 0;
 
   acquire(&ptable.lock);
 
@@ -327,74 +197,9 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  proc->state = ZOMBIE;
   sched();
-  cprintf("%d\n", proc->pid);
   panic("zombie exit");
-}
-
-int join(void) {
-  struct proc *p;
-  int havekids, pid;
-
-  // check if we have any child threads
-  int haveThreads = 0;
-  for (int i = 1; i < MAX_THREADS; i++) {
-    if (proc->thread_ptr[i] != 0) {
-      haveThreads = 1;
-      break;
-    }
-  }
-  if (!haveThreads) return -1;
-
-  acquire(&ptable.lock);
-  for(;;){
-    // Scan through threads looking for zombie children.
-    havekids = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != proc)
-        continue;
-      havekids = 1;
-      if(p->state == ZOMBIE){
-        // check if this proc is one of our threads
-        int thread;
-        for (thread = 1; thread < MAX_THREADS; thread++) {
-          if (p->pid == proc->thread_ptr[thread])
-            break;
-        }
-        if (thread >= MAX_THREADS) {
-          haveThreads = 0;
-          continue;
-        }
-        
-        // Found one.
-        pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-
-        // Free the thread stack
-        int thread_offset = 2 * PGSIZE * thread;
-        deallocuvm(p->pgdir, USERTOP - thread_offset, USERTOP - thread_offset - PGSIZE);
-        p->thread_ptr[thread] = 0;
-
-        release(&ptable.lock);
-        return pid;
-      }
-    }
-
-    // No point waiting if we don't have any children.
-    if(!havekids || !haveThreads || proc->killed){
-      release(&ptable.lock);
-      return -1;
-    }
-
-    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
-    sleep(proc, &ptable.lock);  //DOC: wait-sleep
-  }
 }
 
 // Wait for a child process to exit and return its pid.
@@ -411,8 +216,6 @@ wait(void)
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc)
-        continue;
-      if (p->thread_ptr[0] != p->pid)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
@@ -433,7 +236,6 @@ wait(void)
 
     // No point waiting if we don't have any children.
     if(!havekids || proc->killed){
-      //cprintf("don't have kids\n");
       release(&ptable.lock);
       return -1;
     }
@@ -453,8 +255,8 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc* p;
-  
+  struct proc *p;
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -641,87 +443,4 @@ procdump(void)
   }
 }
 
-// project 2b
-int getpinfo(struct pstat* p) {
-  struct proc* pr;
-  int i = 0;
 
-  acquire(&ptable.lock);
-  for (pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
-    p->inuse[i] = (pr->state != UNUSED);
-    p->pid[i] = pr->pid;
-    p->priority[i] = pr->priority;
-    p->state[i] = pr->state;
-    for (int j=0; j < 4; j++) {
-      p->ticks[i][j] = pr->ticks[j];
-      p->wait_ticks[i][j] = pr->wait_ticks[j];
-    }
-    i++;
-  }
-  release(&ptable.lock);
-  return 0;
-}
-
-void
-lock_init(lock_t *m) {
-  *m = 0;
-}
-
-void
-lock_acquire(lock_t *m) {
-  //cprintf("%d acquired %p\n", proc->pid, m);
-  while (xchg(m, 1) != 0); 
-}
-
-void
-lock_release(lock_t *m) {
-  //cprintf("%d released %p\n", proc->pid, m);
-  *m = 0;
-}
-
-void cv_enqueue(cond_t* cv) {
-  cv->queue[cv->tail] = (void*)proc;
-  if (++cv->tail == (MAX_THREADS)) 
-    cv->tail = 0;
-  return;
-}
-
-int cv_init(cond_t* cv) {
-  cv->head = 0;
-  cv->tail = 0;
-  lock_init(&cv->guard);
-  return 0;
-}
-
-int cv_wait(cond_t* cv, lock_t* m) {
-  if (!*m) return -1;
-  acquire(&ptable.lock);
-  lock_acquire(&cv->guard);
-  cv_enqueue(cv);
-  lock_release(m);
-  lock_release(&cv->guard);
-
-  // Go to sleep.
-  proc->state = SLEEPING;
-  sched();
-
-  release(&ptable.lock);
-  
-  lock_acquire(m);
-  return 0;
-}
-
-int cv_signal(cond_t* cv) {
-  lock_acquire(&cv->guard);
-  if (cv->head == cv->tail) {
-    lock_release(&cv->guard);
-    return 0;
-  }
-  acquire(&ptable.lock);
-  ((struct proc*)cv->queue[cv->head++])->state = RUNNABLE;
-  if (cv->head == (MAX_THREADS)) 
-    cv->head = 0;
-  release(&ptable.lock);
-  lock_release(&cv->guard);
-  return 1;
-}

@@ -13,32 +13,11 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
-int isInValidStack(struct proc* p, uint addr, uint n) {
-  for (int i = 0; i < MAX_THREADS; i++) {
-    if (p->thread_ptr[i] == p->pid) {
-      int thread_offset = 2 * PGSIZE * i;
-      if (addr+n <= (USERTOP - thread_offset) && addr >= (USERTOP - thread_offset - PGSIZE)) {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
-int
-isValid(struct proc* p, uint addr, uint n) {
-  int valid = 
-      ( (addr+n <= p->sz && addr >= USERBOT) ||
-        isInValidStack(p, addr, n) ||
-        addr == 0);
-  return valid;
-}
-
 // Fetch the int at addr from process p.
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if (!isValid(p, addr, sizeof(uint)))
+  if(addr >= p->sz || addr+4 > p->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -52,17 +31,10 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if (!isValid(p, addr, sizeof(char)))
+  if(addr >= p->sz)
     return -1;
   *pp = (char*)addr;
-  int i;
-  for (i = 0; i < MAX_THREADS; i++) {
-    if (p->thread_ptr[i] == p->pid)
-      break;
-  }
-  int thread_offset = 2 * PGSIZE * i;
-  if (addr >= USERTOP - PGSIZE - thread_offset) ep = (char*)(USERTOP - thread_offset);
-  else ep = (char*)p->sz;
+  ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
@@ -86,8 +58,7 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-
-  if (!isValid(proc, (uint) i, (uint) size) && i != 0) //allow null references
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
@@ -111,37 +82,29 @@ argstr(int n, char **pp)
 
 // array of function pointers to handlers for all the syscalls
 static int (*syscalls[])(void) = {
-[SYS_chdir]     sys_chdir,
-[SYS_close]     sys_close,
-[SYS_dup]       sys_dup,
-[SYS_exec]      sys_exec,
-[SYS_exit]      sys_exit,
-[SYS_fork]      sys_fork,
-[SYS_fstat]     sys_fstat,
-[SYS_getpid]    sys_getpid,
-[SYS_kill]      sys_kill,
-[SYS_link]      sys_link,
-[SYS_mkdir]     sys_mkdir,
-[SYS_mknod]     sys_mknod,
-[SYS_open]      sys_open,
-[SYS_pipe]      sys_pipe,
-[SYS_read]      sys_read,
-[SYS_sbrk]      sys_sbrk,
-[SYS_sleep]     sys_sleep,
-[SYS_unlink]    sys_unlink,
-[SYS_wait]      sys_wait,
-[SYS_write]     sys_write,
-[SYS_uptime]    sys_uptime,
-[SYS_getppid]   sys_getppid,  // project 1b
-[SYS_getpinfo]  sys_getpinfo, // project 2b
-[SYS_clone]     sys_clone,    // project 4b
-[SYS_join]      sys_join,
-[SYS_cv_init]   sys_cv_init,
-[SYS_cv_wait]   sys_cv_wait,
-[SYS_cv_signal] sys_cv_signal
+[SYS_chdir]   sys_chdir,
+[SYS_close]   sys_close,
+[SYS_dup]     sys_dup,
+[SYS_exec]    sys_exec,
+[SYS_exit]    sys_exit,
+[SYS_fork]    sys_fork,
+[SYS_fstat]   sys_fstat,
+[SYS_getpid]  sys_getpid,
+[SYS_kill]    sys_kill,
+[SYS_link]    sys_link,
+[SYS_mkdir]   sys_mkdir,
+[SYS_mknod]   sys_mknod,
+[SYS_open]    sys_open,
+[SYS_pipe]    sys_pipe,
+[SYS_read]    sys_read,
+[SYS_sbrk]    sys_sbrk,
+[SYS_sleep]   sys_sleep,
+[SYS_unlink]  sys_unlink,
+[SYS_wait]    sys_wait,
+[SYS_write]   sys_write,
+[SYS_uptime]  sys_uptime,
+[SYS_block]   sys_block,
 };
-
-
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
 // is valid and then calls the appropriate handler for the syscall.

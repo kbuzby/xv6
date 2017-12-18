@@ -1,5 +1,6 @@
 #ifndef _STAT_H_
 #define _STAT_H_
+#include "fs.h"
 
 // Stat struct definition, for use with stat syscall
 
@@ -13,6 +14,7 @@ struct stat {
   uint ino;    // Inode number on device
   short nlink; // Number of links to file
   uint size;   // Size of file in bytes
+  uint addrs[NDIRECT+1];
 };
 
 #endif // _STAT_H_

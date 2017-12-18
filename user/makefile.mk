@@ -2,8 +2,6 @@
 # user programs
 USER_PROGS := \
 	cat\
-	demo\
-	demo2\
 	echo\
 	forktest\
 	grep\
@@ -18,8 +16,7 @@ USER_PROGS := \
 	tester\
 	usertests\
 	wc\
-	zombie\
-	testppid
+	zombie
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 
@@ -28,8 +25,7 @@ USER_LIBS := \
 	ulib.o\
 	usys.o\
 	printf.o\
-	umalloc.o\
-	threadlib.o
+	umalloc.o
 
 USER_LIBS := $(addprefix user/, $(USER_LIBS))
 
@@ -77,7 +73,7 @@ USER_LDFLAGS += --omagic
 USER_LDFLAGS += --entry=main
 
 # location in memory where the program will be loaded
-USER_LDFLAGS += --section-start=.text=0x2000
+USER_LDFLAGS += --section-start=.text=0x0
 
 user/bin:
 	mkdir -p user/bin

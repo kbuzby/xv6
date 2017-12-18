@@ -1,7 +1,5 @@
 #ifndef _PROC_H_
 #define _PROC_H_
-
-#include "pstat.h"
 // Segments in proc->gdt.
 // Also known to bootasm.S and trapasm.S
 #define SEG_KCODE 1  // kernel code
@@ -59,6 +57,8 @@ struct context {
   uint eip;
 };
 
+enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -74,23 +74,12 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  // project 2b
-  uint priority;                // Priority for sceduling
-  uint ticks[4];                // number of ticks accumulated at each level
-  uint wait_ticks[4];           // number of ticks waited before scheduling
-  // project 4b
-  uint threads[MAX_THREADS];
-  uint* thread_ptr;
 };
 
-int growstack();
-
 // Process memory is laid out contiguously, low addresses first:
-//   2 empty pages
 //   text
 //   original data and bss
+//   fixed-size stack
 //   expandable heap
-//   >= 5 empty pages
-//   expandable stack
 
 #endif // _PROC_H_

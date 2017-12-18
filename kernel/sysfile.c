@@ -8,6 +8,7 @@
 #include "file.h"
 #include "fcntl.h"
 #include "sysfunc.h"
+#include "buf.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -388,5 +389,21 @@ sys_pipe(void)
   }
   fd[0] = fd0;
   fd[1] = fd1;
+  return 0;
+}
+
+int sys_block(void) {
+  void* buf;
+  uint dev, sector;
+
+  if (argptr(0, (char**)&buf, BSIZE) < 0 || argint(1, (int*)&dev) < 0 || argint(2, (int*)&sector) < 0)
+    return -1;
+  if (dev == 0 || sector == 0)
+    return -1;
+
+  struct buf* bp = bread(dev, sector);
+  memmove(buf, bp->data, BSIZE);
+  brelse(bp);
+
   return 0;
 }

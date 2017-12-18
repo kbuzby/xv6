@@ -32,7 +32,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = USERBOT;
+  sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -48,11 +48,13 @@ exec(char *path, char **argv)
   iunlockput(ip);
   ip = 0;
 
-  // Allocate a one-page stack at the USERTOP
-  if((sp = allocuvm(pgdir, USERTOP-PGSIZE, USERTOP)) == 0)
+  // Allocate a one-page stack at the next page boundary
+  sz = PGROUNDUP(sz);
+  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
+  sp = sz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -81,7 +83,7 @@ exec(char *path, char **argv)
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
-  proc->sz = PGROUNDUP(sz);
+  proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);

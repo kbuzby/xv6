@@ -5,8 +5,6 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
-#include "pstat.h"
-#include "lock.h"
 
 int
 sys_fork(void)
@@ -41,11 +39,6 @@ int
 sys_getpid(void)
 {
   return proc->pid;
-}
-
-// project 1b
-int sys_getppid(void) {
-  return proc->parent->pid;
 }
 
 int
@@ -94,60 +87,4 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
-}
-
-// project 2b
-int sys_getpinfo(void)
-{
-  struct pstat* p;
-
-  if (argptr(0, (void*)&p, sizeof(struct pstat*)) < 0)
-    return -1;
-  return getpinfo(p);
-}
-
-// project 4b
-int sys_clone(void)
-{
-  void(*fcn)(void*);
-  void* arg;
-  
-  // get parameters
-  if (argptr(0, (void*)&fcn, sizeof(void(*)(void*))) < 0)
-    return -1;
-  if (argptr(1, (void*)&arg, sizeof(void*)) < 0)
-    return -1;
-
-  return clone(fcn, arg);
-}
-
-int sys_join(void) {
-  return join();
-}
-
-int sys_cv_init(void) {
-  cond_t* cv;
-
-  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
-    return -1;
-  return cv_init(cv);
-}
-
-int sys_cv_wait(void) {
-  cond_t* cv;
-  lock_t* m;
-
-  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
-    return -1;
-  if (argptr(1, (void*)&m, sizeof(lock_t*)))
-    return -1;
-  return cv_wait(cv, m);
-}
-
-int sys_cv_signal(void) {
-  cond_t* cv;
-
-  if (argptr(0, (void*)&cv, sizeof(cond_t*)))
-    return -1;
-  return cv_signal(cv);
 }
